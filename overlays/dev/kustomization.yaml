@@ -8,13 +8,17 @@ resources:
 
 namespace: taxdocs-dev
 
+# Namespace (and every resource in this overlay) lands at wave -1 so
+# a brand-new cluster creates the Namespace before dependents wait
+# on CreateNamespace=true alone. Application-level waves still order
+# dev (0) before staging (1) before prod (2).
 commonAnnotations:
-  argocd.argoproj.io/sync-wave: "0"
+  argocd.argoproj.io/sync-wave: "-1"
 
 images:
   - name:    uptimecrew/taxdocs-api
     newName: uptimecrew/taxdocs-api
-    newTag:  1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f
+    newTag:  "0.1.4"
 
 replicas:
   - name:  taxdocs-api

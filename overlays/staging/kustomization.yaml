@@ -8,12 +8,12 @@ resources:
 namespace: taxdocs-staging
 
 commonAnnotations:
-  argocd.argoproj.io/sync-wave: "0"
+  argocd.argoproj.io/sync-wave: "-1"
 
 images:
   - name:    uptimecrew/taxdocs-api
     newName: uptimecrew/taxdocs-api
-    newTag:  1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f
+    newTag:  "0.1.4"
 
 replicas:
   - name:  taxdocs-api
