@@ -1,0 +1,56 @@
+# argocd/applications/taxdocs-api-dev.yaml
+# Single-env Application for the dev overlay. The ApplicationSet
+# (Task 3) generates the matching staging + prod Applications via
+# a matrix generator. This file stays as the dev anchor so a
+# brand-new contributor has one concrete Application to read.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taxdocs-api-dev
+  namespace: argocd
+  # Without this finalizer, deleting the Application leaves the
+  # Deployment + Service + ConfigMap orphaned in the cluster.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    env:  dev
+    team: taxdocs
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: taxdocs-deploys
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: taxdocs-deploys
+spec:
+  # MUST be the project name -- never "default".
+  project: taxdocs
+
+  source:
+    repoURL:        https://github.com/AI-Native-2026-08-05-Intuit/annapurna-neerukonda-tax-docs-config.git
+    path:           overlays/dev
+    targetRevision: main
+    kustomize:
+      # The CI bump-config workflow rewrites this image reference
+      # on every green main build; Kustomize patches the rendered
+      # Deployment to match.
+      images:
+        - uptimecrew/taxdocs-api:1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f
+
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: taxdocs-dev
+
+  syncPolicy:
+    automated:
+      prune:      true   # remove resources deleted from Git
+      selfHeal:   true   # revert drift from kubectl edit on live cluster
+      allowEmpty: false  # never sync an empty manifest set (deletes everything)
+    syncOptions:
+      - CreateNamespace=true     # first sync creates taxdocs-dev if missing
+      - ServerSideApply=true     # avoids the 256 kB last-applied-config limit
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true           # workloads pruned AFTER their dependencies
+      - ApplyOutOfSyncOnly=true  # skip already-converged resources
+    retry:
+      limit: 5
+      backoff:
+        duration:    10s
+        factor:      2
+        maxDuration: 3m
