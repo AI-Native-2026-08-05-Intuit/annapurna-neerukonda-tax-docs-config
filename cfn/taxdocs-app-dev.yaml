@@ -1,8 +1,9 @@
 # cfn/taxdocs-app-dev.yaml
 # RDS in the network stack's private subnets. Subnet IDs and the app SG
 # come from !ImportValue only — never hardcoded — so a network rebuild
-# does not leave stale IDs. Master password is a Secrets Manager dynamic
-# reference, not a NoEcho parameter (NoEcho still sits in CFN state / events).
+# does not leave stale IDs. Master username and password are Secrets
+# Manager dynamic references, not NoEcho parameters (NoEcho still sits
+# in CFN state / events).
 #
 # Secret is created out of band:
 #   aws secretsmanager create-secret --name taxdocs/dev/db-master \
@@ -17,12 +18,6 @@ Parameters:
     AllowedValues: [dev, staging, prod]
     Description: Environment name (dev, staging, or prod). Secret path uses this value after taxdocs/.
 
-  DbMasterUsername:
-    Type: String
-    Default: taxdocs
-    AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]{0,15}$"
-    Description: Must match the username field in the Secrets Manager secret.
-
 Resources:
   RdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -35,6 +30,12 @@ Resources:
           ToPort: 5432
           SourceSecurityGroupId: !ImportValue taxdocs-network-dev-AppSgId
           Description: Postgres from app SG
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          DestinationSecurityGroupId: !ImportValue taxdocs-network-dev-AppSgId
+          Description: Explicit egress to the app SG (satisfies F1000; not 0.0.0.0/0)
 
   AppToRdsEgress:
     Type: AWS::EC2::SecurityGroupEgress
@@ -61,8 +62,6 @@ Resources:
         rules_to_suppress:
           - id: W28
             reason: Capstone RDS uses a 1-day backup window; not a production RPO.
-          - id: W78
-            reason: DeletionProtection is off so the shared sandbox can tear down.
     Properties:
       DBInstanceIdentifier: !Sub taxdocs-${EnvName}
       Engine: postgres
@@ -73,11 +72,11 @@ Resources:
       PubliclyAccessible: false
       MultiAZ: false
       BackupRetentionPeriod: 1
-      DeletionProtection: false
+      DeletionProtection: true
       VPCSecurityGroups:
         - !Ref RdsSecurityGroup
       DBSubnetGroupName: !Ref DbSubnetGroup
-      MasterUsername: !Ref DbMasterUsername
+      MasterUsername: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:password}}"
       Port: 5432
 
