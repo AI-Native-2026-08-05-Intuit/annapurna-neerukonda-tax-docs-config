@@ -1,0 +1,88 @@
+# cfn/taxdocs-app-dev.yaml
+# RDS in the network stack's private subnets. Subnet IDs and the app SG
+# come from !ImportValue only — never hardcoded — so a network rebuild
+# does not leave stale IDs. Master password is a Secrets Manager dynamic
+# reference, not a NoEcho parameter (NoEcho still sits in CFN state / events).
+#
+# Secret is created out of band:
+#   aws secretsmanager create-secret --name taxdocs/dev/db-master \
+#     --secret-string '{"username":"taxdocs","password":"..."}'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: taxdocs app — RDS in imported private subnets; password from Secrets Manager
+
+Parameters:
+  EnvName:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment. Secret path is taxdocs/${EnvName}/db-master.
+
+  DbMasterUsername:
+    Type: String
+    Default: taxdocs
+    AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]{0,15}$"
+    Description: Must match the username field in the Secrets Manager secret.
+
+Resources:
+  RdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: taxdocs RDS; tcp/5432 from the imported app SG
+      VpcId: !ImportValue taxdocs-network-dev-VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !ImportValue taxdocs-network-dev-AppSgId
+          Description: Postgres from app SG
+
+  AppToRdsEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !ImportValue taxdocs-network-dev-AppSgId
+      DestinationSecurityGroupId: !Ref RdsSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      Description: App SG to RDS postgres
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets from taxdocs-network-dev export
+      SubnetIds: !Split [",", !ImportValue taxdocs-network-dev-PrivateSubnets]
+
+  DbInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Sub taxdocs-${EnvName}
+      Engine: postgres
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      StorageType: gp3
+      StorageEncrypted: true
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: 1
+      DeletionProtection: false
+      VPCSecurityGroups:
+        - !Ref RdsSecurityGroup
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      MasterUsername: !Ref DbMasterUsername
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:password}}"
+      Port: 5432
+
+Outputs:
+  DbEndpoint:
+    Description: RDS instance endpoint address.
+    Value: !GetAtt DbInstance.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}-DbEndpoint
+
+  RdsSgId:
+    Description: RDS security group ID.
+    Value: !Ref RdsSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-RdsSgId

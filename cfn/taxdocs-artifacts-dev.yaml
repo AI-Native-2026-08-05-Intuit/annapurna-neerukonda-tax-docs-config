@@ -1,0 +1,73 @@
+# cfn/taxdocs-artifacts-dev.yaml
+# Hardened artefact bucket. DeletionPolicy AND UpdateReplacePolicy are both
+# Retain so stack delete or a BucketName replacement does not drop objects.
+AWSTemplateFormatVersion: "2010-09-09"
+Description: taxdocs artefacts — KMS, PAB, IA then Glacier IR, deny-non-TLS
+
+Parameters:
+  EnvName:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Used in tags. Bucket name is the shared capstone name.
+
+Resources:
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: uptimecrew-taxdocs-artifacts-dev
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: alias/aws/s3
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToIaThenGlacierIr
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 365
+                StorageClass: GLACIER_IR
+
+  ArtifactsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactsBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyNonTLS
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt ArtifactsBucket.Arn
+              - !Sub ${ArtifactsBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+Outputs:
+  ArtifactsBucketName:
+    Description: Hardened artefact bucket name.
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-BucketName
+
+  ArtifactsBucketArn:
+    Description: Hardened artefact bucket ARN.
+    Value: !GetAtt ArtifactsBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-BucketArn

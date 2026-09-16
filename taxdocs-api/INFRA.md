@@ -4,6 +4,8 @@
 
 - `cfn/taxdocs-bootstrap-dev.yaml` — artefact S3 bucket + OIDC deploy role (W6 D3 Task 1).
 - `cfn/taxdocs-network-dev.yaml` — 3-AZ VPC + NAT Conditions + app SG (Task 2).
+- `cfn/taxdocs-app-dev.yaml` — RDS + `!ImportValue` + Secrets Manager password (Task 3).
+- `cfn/taxdocs-artifacts-dev.yaml` — hardened `uptimecrew-taxdocs-artifacts-dev` (Task 3).
 - `.github/workflows/cfn-validate.yml` — cfn-lint + cfn-nag (Task 4, when present).
 
 Curriculum names `uptimecrew/taxdocs-config`. This cohort's gitops repo is `AI-Native-2026-08-05-Intuit/annapurna-neerukonda-tax-docs-config`. Bootstrap OIDC `sub` is pinned to that repo.
@@ -131,8 +133,26 @@ aws cloudformation list-exports --profile 668668940354 --region us-east-1 \
   --query "Exports[?starts_with(Name, 'taxdocs-network-dev-')].Name"
 ```
 
+## App + artefacts stacks (`taxdocs-app-dev`, `taxdocs-artifacts-dev`)
+
+App stack **never hardcodes subnet IDs**. `DbSubnetGroup` uses `!Split [",", !ImportValue taxdocs-network-dev-PrivateSubnets]`; RDS ingress and `AppToRdsEgress` use `!ImportValue taxdocs-network-dev-AppSgId` / `VpcId`. After a network rebuild, CFN re-resolves those exports.
+
+**Why dynamic reference vs NoEcho:** `NoEcho: true` hides the password in the Console but it still lands in the template parameter, change-set JSON, and often stack events. `{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:password}}` keeps the secret in Secrets Manager; the YAML has no password. The secret is created out of band (`taxdocs/dev/db-master` already exists in this account).
+
+Artefact bucket `uptimecrew-taxdocs-artifacts-dev`: PAB all four, SSE-KMS `alias/aws/s3`, versioning, 90d → STANDARD_IA then 365d → GLACIER_IR, deny `aws:SecureTransport: false`, both Retain policies.
+
+Live (do not CREATE a second copy): `taxdocs-app-dev` has RDS outputs (`UPDATE_ROLLBACK_COMPLETE` after a later failed update — instance still exported). `taxdocs-artifacts-dev` is `UPDATE_COMPLETE`. Delete of `taxdocs-network-dev` was refused: `Cannot delete export taxdocs-network-dev-PrivateSubnets as it is in use by taxdocs-app-dev` (stack stayed `UPDATE_COMPLETE`).
+
+```bash
+aws cloudformation describe-stacks --profile 668668940354 --region us-east-1 \
+  --stack-name taxdocs-app-dev --query 'Stacks[0].{Status:StackStatus,Outputs:Outputs}'
+
+aws s3api get-public-access-block --profile 668668940354 --bucket uptimecrew-taxdocs-artifacts-dev
+
+aws s3api get-bucket-policy --profile 668668940354 --bucket uptimecrew-taxdocs-artifacts-dev
+```
+
 ## Out of scope (later today / later weeks)
 
-- App stack + Secrets Manager dynamic reference — Task 3 (`taxdocs/dev/db-master` is created out of band; the password never enters YAML).
 - ESO / IRSA — still W6 D3 app-side.
 - Argo Rollouts — W6 D5.
