@@ -1,0 +1,12 @@
+# manifests/00-namespace.yaml — bounded blast radius for taxdocs-api.
+# ResourceQuota and LimitRange from W5 D3 stay with the platform team:
+# the AppProject blacklists those kinds.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taxdocs-dev
+  labels:
+    app.kubernetes.io/name: taxdocs
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: taxdocs
+    app.kubernetes.io/managed-by: kubectl

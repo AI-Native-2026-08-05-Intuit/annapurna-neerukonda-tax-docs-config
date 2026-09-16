@@ -1,0 +1,33 @@
+# manifests/30-taxdocs-api.configmap.yaml — non-secret env.
+# Extra keys (Kafka listener, outbox, Mongo, OAuth, ddl-auto) are this
+# capstone's boot contract; they are not secrets.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taxdocs-api-config
+  namespace: taxdocs-dev
+  labels:
+    app.kubernetes.io/name: taxdocs-api
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: taxdocs
+    app.kubernetes.io/managed-by: kubectl
+data:
+  SPRING_PROFILES_ACTIVE: k8s
+  LOG_LEVEL: INFO
+  LOGGING_LEVEL_ROOT: INFO
+  SERVER_PORT: "8080"
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres.taxdocs-dev.svc.cluster.local:5432/taxdocs_dev
+  SPRING_DATASOURCE_USERNAME: taxdocs_dev
+  SPRING_JPA_HIBERNATE_DDL_AUTO: none
+  SPRING_DATA_MONGODB_URI: mongodb://mongo.taxdocs-dev.svc.cluster.local:27017/taxdocs
+  SPRING_DATA_REDIS_HOST: redis.taxdocs-dev.svc.cluster.local
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka.taxdocs-dev.svc.cluster.local:9092
+  SPRING_KAFKA_LISTENER_AUTO_STARTUP: "false"
+  TAXDOCS_OUTBOX_PUBLISHER_ENABLED: "false"
+  TAXDOCS_DEBUG_LOOKUP_DELAY_MS: "0"
+  OAUTH2_ISSUER_URI: http://oauth.taxdocs-dev.svc.cluster.local:8080/default
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_SERVICE_NAME: taxdocs-api
+  OTEL_SDK_DISABLED: "false"
