@@ -12,8 +12,16 @@ metadata:
   namespace: argocd
 data:
   # ----- Where to deliver notifications -----
+  # Rubric wants service.slack. Incoming webhooks (cohort Slack app)
+  # are not xoxb tokens, so webhook.taxdocs-deploys POSTs $slack-token.
   service.slack: |
     token: $slack-token   # resolved from argocd-notifications-secret
+
+  service.webhook.taxdocs-deploys: |
+    url: $slack-token
+    headers:
+      - name: Content-Type
+        value: application/json
 
   # ----- Triggers (when to fire) -----
   trigger.on-sync-failed: |
@@ -51,6 +59,11 @@ data:
             {"title": "Revision", "value": "{{.app.status.operationState.syncResult.revision}}", "short": true}
           ]
         }]
+    webhook:
+      taxdocs-deploys:
+        method: POST
+        body: |
+          {"text":"{{.app.metadata.name}} sync FAILED ({{.app.status.operationState.phase}}): {{.app.status.operationState.message}}"}
 
   template.app-health-degraded: |
     message: |
@@ -69,12 +82,17 @@ data:
             {"title": "Message",  "value": "{{.app.status.health.message}}", "short": false}
           ]
         }]
+    webhook:
+      taxdocs-deploys:
+        method: POST
+        body: |
+          {"text":"{{.app.metadata.name}} health is DEGRADED: {{.app.status.health.message}}"}
 
   # ----- Default subscriptions (per-Application annotations override) -----
   # Every Application in this AppProject is subscribed to the two
   # triggers via per-Application annotations (see Task 4); this
   # block is the fallback for Applications that forget to annotate.
   subscriptions: |
-    - recipients: [slack:taxdocs-deploys]
+    - recipients: [slack:taxdocs-deploys, webhook:taxdocs-deploys]
       triggers:   [on-sync-failed, on-health-degraded]
       selector:   "team=taxdocs"
