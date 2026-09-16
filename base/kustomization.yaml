@@ -5,4 +5,5 @@ resources:
   - 10-taxdocs-api.deployment.yaml
   - 20-taxdocs-api.service.yaml
   - 30-configmap.yaml
+  - 40-taxdocs-api.secret.yaml
   - 60-taxdocs-api.servicemonitor.yaml
