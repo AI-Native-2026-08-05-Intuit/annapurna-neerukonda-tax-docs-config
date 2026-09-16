@@ -21,6 +21,13 @@ replicas:
 
 patches:
   - target:
+      kind: Namespace
+      name: taxdocs-dev
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: taxdocs-prod
+  - target:
       kind: ConfigMap
       name: taxdocs-api-config
     patch: |-
