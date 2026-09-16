@@ -16,8 +16,16 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Access logging is out of scope for this capstone artefact bucket.
     Properties:
       BucketName: uptimecrew-taxdocs-artifacts-dev
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvName
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:

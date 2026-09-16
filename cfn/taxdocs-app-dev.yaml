@@ -15,7 +15,7 @@ Parameters:
     Type: String
     Default: dev
     AllowedValues: [dev, staging, prod]
-    Description: Environment. Secret path is taxdocs/${EnvName}/db-master.
+    Description: Environment. Secret path is taxdocs/<EnvName>/db-master.
 
   DbMasterUsername:
     Type: String
@@ -56,6 +56,13 @@ Resources:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Capstone RDS uses a 1-day backup window; not a production RPO.
+          - id: W78
+            reason: DeletionProtection is off so the shared sandbox can tear down.
     Properties:
       DBInstanceIdentifier: !Sub taxdocs-${EnvName}
       Engine: postgres
