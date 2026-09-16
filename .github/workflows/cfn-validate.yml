@@ -1,0 +1,45 @@
+# Lint and validate CloudFormation templates on every PR that touches cfn/.
+name: cfn-validate
+
+on:
+  pull_request:
+    paths:
+      - 'cfn/**'
+      - '.github/workflows/cfn-validate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'cfn/**'
+      - '.github/workflows/cfn-validate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: cfn-lint + cfn-nag
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Set up Python
+        uses: actions/setup-python@f677139bbe7f9c76676b159cc5ae1a4ae4d1df2b # v5.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install cfn-lint
+        run: pip install "cfn-lint>=1.20"
+
+      - name: cfn-lint
+        run: cfn-lint cfn/*.yaml
+
+      - name: Install Ruby + cfn-nag
+        uses: ruby/setup-ruby@4a9ddd6f338a97768b8006bf671dfbad383215f4 # v1.207.0
+        with:
+          ruby-version: "3.2"
+
+      - name: cfn-nag
+        run: |
+          gem install cfn-nag -v 0.8.10
+          cfn_nag_scan --input-path cfn/
