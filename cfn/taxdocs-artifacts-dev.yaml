@@ -9,7 +9,7 @@ Parameters:
     Type: String
     Default: dev
     AllowedValues: [dev, staging, prod]
-    Description: Used in tags. Bucket name is the shared capstone name.
+    Description: Environment name applied to the artefact bucket Environment tag.
 
 Resources:
   ArtifactsBucket:
@@ -68,6 +68,10 @@ Resources:
                 aws:SecureTransport: false
 
 Outputs:
+  EnvironmentName:
+    Description: Environment this artefact stack was deployed for.
+    Value: !Ref EnvName
+
   ArtifactsBucketName:
     Description: Hardened artefact bucket name.
     Value: !Ref ArtifactsBucket

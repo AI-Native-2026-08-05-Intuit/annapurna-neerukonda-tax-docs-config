@@ -15,7 +15,7 @@ Parameters:
     Type: String
     Default: dev
     AllowedValues: [dev, staging, prod]
-    Description: Environment. Secret path is taxdocs/<EnvName>/db-master.
+    Description: Environment name (dev, staging, or prod). Secret path uses this value after taxdocs/.
 
   DbMasterUsername:
     Type: String
