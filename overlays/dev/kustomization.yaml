@@ -1,5 +1,6 @@
 # overlays/dev/kustomization.yaml
 # The dev overlay -- the smallest viable patch over the W5 D3 base.
+# Namespace wave lives on base/00-namespace.yaml (-1), not commonAnnotations.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind:       Kustomization
 
@@ -8,16 +9,9 @@ resources:
 
 namespace: taxdocs-dev
 
-# Namespace (and every resource in this overlay) lands at wave -1 so
-# a brand-new cluster creates the Namespace before dependents wait
-# on CreateNamespace=true alone. Application-level waves still order
-# dev (0) before staging (1) before prod (2).
-commonAnnotations:
-  argocd.argoproj.io/sync-wave: "-1"
-
 images:
-  - name:    uptimecrew/taxdocs-api
-    newName: uptimecrew/taxdocs-api
+  - name:    public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
+    newName: public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
     newTag:  "0.1.4"
 
 replicas:
@@ -34,4 +28,7 @@ patches:
         value: dev
       - op: replace
         path: /data/LOG_LEVEL
+        value: DEBUG
+      - op: replace
+        path: /data/LOGGING_LEVEL_ROOT
         value: DEBUG
