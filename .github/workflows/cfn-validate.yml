@@ -42,4 +42,6 @@ jobs:
       - name: cfn-nag
         run: |
           gem install cfn-nag -v 0.8.10
-          cfn_nag_scan --input-path cfn/
+          # Import mappings (*.json) are not templates; nag them and you get
+          # FATAL "Illegal cfn - no Resources".
+          cfn_nag_scan --input-path cfn/ --template-pattern '.*\.(yml|yaml)$'
