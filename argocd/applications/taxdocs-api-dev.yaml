@@ -16,8 +16,8 @@ metadata:
     env:  dev
     team: taxdocs
   annotations:
-    notifications.argoproj.io/subscribe.on-sync-failed.slack: taxdocs-deploys
-    notifications.argoproj.io/subscribe.on-health-degraded.slack: taxdocs-deploys
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: argocd-notifications
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: argocd-notifications
 spec:
   # MUST be the project name -- never "default".
   project: taxdocs

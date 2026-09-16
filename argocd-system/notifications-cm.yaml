@@ -13,11 +13,11 @@ metadata:
 data:
   # ----- Where to deliver notifications -----
   # Rubric wants service.slack. Incoming webhooks (cohort Slack app)
-  # are not xoxb tokens, so webhook.taxdocs-deploys POSTs $slack-token.
+  # are not xoxb tokens, so webhook.argocd-notifications POSTs $slack-token.
   service.slack: |
     token: $slack-token   # resolved from argocd-notifications-secret
 
-  service.webhook.taxdocs-deploys: |
+  service.webhook.argocd-notifications: |
     url: $slack-token
     headers:
       - name: Content-Type
@@ -60,7 +60,7 @@ data:
           ]
         }]
     webhook:
-      taxdocs-deploys:
+      argocd-notifications:
         method: POST
         body: |
           {"text":"{{.app.metadata.name}} sync FAILED ({{.app.status.operationState.phase}}): {{.app.status.operationState.message}}"}
@@ -83,7 +83,7 @@ data:
           ]
         }]
     webhook:
-      taxdocs-deploys:
+      argocd-notifications:
         method: POST
         body: |
           {"text":"{{.app.metadata.name}} health is DEGRADED: {{.app.status.health.message}}"}
@@ -93,6 +93,6 @@ data:
   # triggers via per-Application annotations (see Task 4); this
   # block is the fallback for Applications that forget to annotate.
   subscriptions: |
-    - recipients: [slack:taxdocs-deploys, webhook:taxdocs-deploys]
+    - recipients: [slack:argocd-notifications, webhook:argocd-notifications]
       triggers:   [on-sync-failed, on-health-degraded]
       selector:   "team=taxdocs"

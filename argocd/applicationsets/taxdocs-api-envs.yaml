@@ -53,8 +53,8 @@ spec:
         # cross-env promotion: dev syncs first, staging second,
         # prod third.
         argocd.argoproj.io/sync-wave: "{{wave}}"
-        notifications.argoproj.io/subscribe.on-sync-failed.slack: taxdocs-deploys
-        notifications.argoproj.io/subscribe.on-health-degraded.slack: taxdocs-deploys
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: argocd-notifications
+        notifications.argoproj.io/subscribe.on-health-degraded.slack: argocd-notifications
       labels:
         env:  "{{env}}"
         team: taxdocs
