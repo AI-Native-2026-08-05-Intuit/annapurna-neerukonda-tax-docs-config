@@ -1,0 +1,6 @@
+# Used by .github/workflows/cfn-validate.yml (cfn-lint + serverless extra rules).
+regions:
+  - us-east-1
+append_rules:
+  - cfn_lint_serverless.rules
+ignore_checks: []

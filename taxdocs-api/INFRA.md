@@ -6,7 +6,7 @@
 - `cfn/taxdocs-network-dev.yaml` — 3-AZ VPC + NAT Conditions + app SG (Task 2).
 - `cfn/taxdocs-app-dev.yaml` — RDS + `!ImportValue` + Secrets Manager password (Task 3).
 - `cfn/taxdocs-artifacts-dev.yaml` — hardened `uptimecrew-taxdocs-artifacts-dev` (Task 3).
-- `.github/workflows/cfn-validate.yml` — cfn-lint + cfn-nag (Task 4, when present).
+- `.github/workflows/cfn-validate.yml` — cfn-lint (serverless profile) + cfn-nag `--fail-on-warnings` + `validate-template`.
 
 Curriculum names `uptimecrew/taxdocs-config`. This cohort's gitops repo is `AI-Native-2026-08-05-Intuit/annapurna-neerukonda-tax-docs-config`. Bootstrap OIDC `sub` is pinned to that repo.
 
@@ -151,6 +151,57 @@ aws s3api get-public-access-block --profile 668668940354 --bucket uptimecrew-tax
 
 aws s3api get-bucket-policy --profile 668668940354 --bucket uptimecrew-taxdocs-artifacts-dev
 ```
+
+## Deploy ordering
+
+1. `taxdocs-bootstrap-dev` — artefact bucket + OIDC deploy role (exports `taxdocs-dev-*`).
+2. `taxdocs-network-dev` — VPC / subnets / app SG (exports `taxdocs-network-dev-*`).
+3. `taxdocs-app-dev` — RDS + 5432 egress; **imports** network exports. Blocks delete of the network stack.
+4. `taxdocs-artifacts-dev` — hardened `uptimecrew-taxdocs-artifacts-dev` (independent of 2–3).
+
+ChangeSet flow (every stack): `create-change-set` → `describe-change-set` (paste the resource diff) → `execute-change-set` → wait. First deploy is `--change-set-type CREATE`; later edits are `UPDATE`. Use `--template-body` so Console/SCP `CreateUploadBucket` is not required. Export names are stack-prefixed (`taxdocs-network-dev-VpcId`, `taxdocs-app-dev-DbEndpoint`, …) so Task 3 `!ImportValue` stays stable.
+
+## Drift + in-place UPDATE (Task 4 evidence)
+
+**Why cfn-lint AND cfn-nag:** cfn-lint (plus `cfn-lint-serverless`) catches invalid properties, bad intrinsics, and region/schema issues. cfn-nag is a security policy engine (open CIDRs, IAM `*`, missing encryption, no access logging). A template can be schema-valid and still fail nag.
+
+Mark **cfn-validate** / job `cfn-lint + cfn-nag + validate-template` as a **required status check on `main`**.
+
+Captured 2026-09-16 on `taxdocs-bootstrap-dev` (lifecycle NoncurrentDays 30 → 7 → 30). ChangeSets were **described and deleted**, not executed, so the shared VPC/RDS stay put.
+
+```
+detect-stack-drift taxdocs-bootstrap-dev
+# 94595670-b1f6-11f1-b60d-12af382b91fd  DETECTION_COMPLETE / DRIFTED  (1 resource)
+# revert lifecycle to 30 days
+# 972c73a0-b1f6-11f1-9b87-1283a6aa582f  DETECTION_COMPLETE / IN_SYNC   (0 resources)
+```
+
+UPDATE ChangeSets (`Replacement: False` on every resource we would actually apply):
+
+- `taxdocs-artifacts-dev` / `w6d3-art-noreplace` — ArtifactsBucket + Policy `Replacement: False`
+- `taxdocs-bootstrap-dev` / `w6d3-boot-noreplace` — Bucket + Policy + Role `Replacement: False`
+- `taxdocs-app-dev` / `w6d3-app-noreplace` — DbInstance + SG + subnet group `Replacement: False`
+- `taxdocs-network-dev` / `w6d3-net-noreplace` — **not executed**: AppSecurityGroup `Replacement: True` against the shared live stack
+
+`aws cloudformation delete-stack --stack-name taxdocs-network-dev` (2026-09-16T17:44:13Z):
+
+```
+Delete canceled. Cannot delete export taxdocs-network-dev-VpcId as it is in use by taxdocs-app-dev.
+```
+
+Stack stayed `UPDATE_COMPLETE`.
+
+## cfn-author Skill audit
+
+`/cfn-author taxdocs --region us-east-1` is not installed in this workspace (no Skill file on disk). The four hand-authored templates were checked against the Skill quirks the lab lists:
+
+| Skill quirk | Our templates |
+|---|---|
+| `StringLike` on OIDC **aud** (must be `StringEquals`) | Bootstrap uses `StringEquals` on `aud=sts.amazonaws.com` and `StringLike` only on `sub` (`repo:org/repo:*`). |
+| `NoEcho: true` password Parameter | App stack has **no** password parameter; `MasterUserPassword` is `{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:password}}`. |
+| `DeletionPolicy: Retain` without `UpdateReplacePolicy: Retain` on buckets | Bootstrap + artefacts buckets set **both**. |
+
+Do not merge Skill output that regresses those three.
 
 ## Out of scope (later today / later weeks)
 

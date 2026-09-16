@@ -44,6 +44,11 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Access logging is out of scope for this capstone artefact bucket.
     Properties:
       BucketName: !Sub taxdocs-bootstrap-${EnvName}-${AWS::AccountId}
       PublicAccessBlockConfiguration:
@@ -90,6 +95,11 @@ Resources:
     Type: AWS::IAM::Role
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: RoleName is required so GitHub OIDC can assume a stable ARN.
     Properties:
       RoleName: !Ref CfnDeployRoleName
       Description: Assumed by GitHub Actions OIDC to deploy taxdocs-* CloudFormation stacks.

@@ -1,25 +1,34 @@
-# Lint and validate CloudFormation templates on every PR that touches cfn/.
+# Lint and validate CloudFormation on every PR that touches cfn/.
+# Required status check on main: job "cfn-lint + cfn-nag + validate-template".
+#
+# Why both linters: cfn-lint is the CloudFormation schema / intrinsic / region
+# checker (plus cfn-lint-serverless extras). cfn-nag is a security policy
+# scanner (open SG, IAM *, missing encryption). Passing one does not imply
+# the other.
 name: cfn-validate
 
 on:
   pull_request:
     paths:
-      - 'cfn/**'
-      - '.github/workflows/cfn-validate.yml'
+      - "cfn/**"
+      - ".github/workflows/cfn-validate.yml"
+      - ".cfnlintrc.yaml"
   push:
     branches: [main]
     paths:
-      - 'cfn/**'
-      - '.github/workflows/cfn-validate.yml'
+      - "cfn/**"
+      - ".github/workflows/cfn-validate.yml"
+      - ".cfnlintrc.yaml"
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   lint:
-    name: cfn-lint + cfn-nag
+    name: cfn-lint + cfn-nag + validate-template
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
@@ -28,20 +37,42 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install cfn-lint
-        run: pip install "cfn-lint>=1.20"
+      - name: Install cfn-lint + cfn-lint-serverless
+        run: pip install "cfn-lint>=1.20" cfn-lint-serverless
 
-      - name: cfn-lint
-        run: cfn-lint cfn/*.yaml
+      - name: cfn-lint (serverless profile)
+        run: cfn-lint --config-file .cfnlintrc.yaml cfn/*.yaml
 
       - name: Install Ruby + cfn-nag
         uses: ruby/setup-ruby@4a9ddd6f338a97768b8006bf671dfbad383215f4 # v1.207.0
         with:
           ruby-version: "3.2"
 
-      - name: cfn-nag
+      - name: cfn-nag --fail-on-warnings
         run: |
           gem install cfn-nag -v 0.8.10
-          # Import mappings (*.json) are not templates; nag them and you get
-          # FATAL "Illegal cfn - no Resources".
-          cfn_nag_scan --input-path cfn/ --template-pattern '.*\.(yml|yaml)$'
+          cfn_nag_scan --fail-on-warnings \
+            --input-path cfn/ \
+            --template-pattern '.*\.(yml|yaml)$'
+
+      - name: Configure AWS credentials
+        if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: aws cloudformation validate-template
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AWS_DEPLOY_ROLE_ARN}" ]; then
+            echo "AWS_DEPLOY_ROLE_ARN repo variable is empty; skipping live validate-template."
+            echo "cfn-lint already parsed every template. Set the variable to fail the job on AWS API reject."
+            exit 0
+          fi
+          for f in cfn/*.yaml; do
+            echo "validate-template $f"
+            aws cloudformation validate-template --region us-east-1 --template-body "file://$f"
+          done

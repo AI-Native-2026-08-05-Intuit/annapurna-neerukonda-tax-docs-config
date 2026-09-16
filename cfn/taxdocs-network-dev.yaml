@@ -24,14 +24,23 @@ Parameters:
     Description: VPC CIDR. Eight /24s are carved with !Cidr [VpcCidr, 8, 8].
 
 Conditions:
+  # Gate: staging/prod get NAT-per-AZ (NatGatewayBPerAz / NatGatewayCPerAz +
+  # their route tables). Dev must not pay for three NATs.
   IsProdLike: !Or
     - !Equals [!Ref EnvName, staging]
     - !Equals [!Ref EnvName, prod]
+  # Gate: inverse of IsProdLike. Private B/C associate to PrivateRouteTableA
+  # so they share NatGatewayA.
   IsDev: !Not [!Condition IsProdLike]
 
 Resources:
   Vpc:
     Type: AWS::EC2::VPC
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W60
+            reason: VPC Flow Logs are a platform cost; not required for this capstone VPC.
     Properties:
       CidrBlock: !Ref VpcCidr
       EnableDnsSupport: true
@@ -55,6 +64,11 @@ Resources:
 
   PublicSubnetA:
     Type: AWS::EC2::Subnet
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W33
+            reason: Public subnets must MapPublicIpOnLaunch so NAT/IGW-facing hosts get a public IP.
     Properties:
       VpcId: !Ref Vpc
       AvailabilityZone: !Select [0, !GetAZs ""]
@@ -66,6 +80,11 @@ Resources:
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W33
+            reason: Public subnets must MapPublicIpOnLaunch so NAT/IGW-facing hosts get a public IP.
     Properties:
       VpcId: !Ref Vpc
       AvailabilityZone: !Select [1, !GetAZs ""]
@@ -77,6 +96,11 @@ Resources:
 
   PublicSubnetC:
     Type: AWS::EC2::Subnet
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W33
+            reason: Public subnets must MapPublicIpOnLaunch so NAT/IGW-facing hosts get a public IP.
     Properties:
       VpcId: !Ref Vpc
       AvailabilityZone: !Select [2, !GetAZs ""]
@@ -287,6 +311,13 @@ Resources:
 
   AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W40
+            reason: App must reach the public internet on 443; ingress is VPC-CIDR only.
+          - id: W5
+            reason: Egress 443 to 0.0.0.0/0 is required; no 0.0.0.0/0 ingress.
     Properties:
       GroupDescription: taxdocs app; ingress 8080 from VPC; egress 443. tcp/5432 to RDS SG is Task 3.
       VpcId: !Ref Vpc
