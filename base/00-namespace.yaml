@@ -10,3 +10,6 @@ metadata:
     app.kubernetes.io/component: namespace
     app.kubernetes.io/part-of: taxdocs
     app.kubernetes.io/managed-by: kubectl
+  annotations:
+    # Namespace must exist before ConfigMap/Secret/Deployment on a first sync.
+    argocd.argoproj.io/sync-wave: "-1"

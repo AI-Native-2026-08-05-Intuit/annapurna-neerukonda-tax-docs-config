@@ -26,9 +26,6 @@ spec:
         app.kubernetes.io/component: api
         app.kubernetes.io/part-of: taxdocs
         app.kubernetes.io/managed-by: kubectl
-      annotations:
-        checksum/config: replace-at-apply-time
-        checksum/secret: replace-at-apply-time
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -37,7 +34,7 @@ spec:
         fsGroup: 65532
       containers:
         - name: taxdocs-api
-          image: uptimecrew/taxdocs-api:0.1.0
+          image: public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api:0.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

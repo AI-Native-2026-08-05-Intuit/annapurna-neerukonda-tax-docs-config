@@ -7,19 +7,23 @@ resources:
 
 namespace: taxdocs-prod
 
-commonAnnotations:
-  argocd.argoproj.io/sync-wave: "0"
-
 images:
-  - name:    uptimecrew/taxdocs-api
-    newName: uptimecrew/taxdocs-api
-    newTag:  1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f
+  - name:    public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
+    newName: public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
+    newTag:  "0.1.4"
 
 replicas:
   - name:  taxdocs-api
     count: 3
 
 patches:
+  - target:
+      kind: Namespace
+      name: taxdocs-dev
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: taxdocs-prod
   - target:
       kind: ConfigMap
       name: taxdocs-api-config
@@ -29,4 +33,29 @@ patches:
         value: prod
       - op: replace
         path: /data/LOG_LEVEL
-        value: INFO
+        value: WARN
+      - op: replace
+        path: /data/LOGGING_LEVEL_ROOT
+        value: WARN
+      - op: replace
+        path: /data/SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://postgres.taxdocs-prod.svc.cluster.local:5432/taxdocs_dev
+      - op: replace
+        path: /data/SPRING_DATA_MONGODB_URI
+        value: mongodb://mongo.taxdocs-prod.svc.cluster.local:27017/taxdocs
+      - op: replace
+        path: /data/SPRING_DATA_REDIS_HOST
+        value: redis.taxdocs-prod.svc.cluster.local
+      - op: replace
+        path: /data/SPRING_KAFKA_BOOTSTRAP_SERVERS
+        value: kafka.taxdocs-prod.svc.cluster.local:9092
+      - op: replace
+        path: /data/OAUTH2_ISSUER_URI
+        value: http://oauth.taxdocs-prod.svc.cluster.local:8080/default
+  - target:
+      kind: ServiceMonitor
+      name: taxdocs-api
+    patch: |-
+      - op: replace
+        path: /spec/namespaceSelector/matchNames/0
+        value: taxdocs-prod

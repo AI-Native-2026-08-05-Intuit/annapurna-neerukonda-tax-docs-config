@@ -17,7 +17,8 @@ spec:
   description: taxdocs-api capstone -- GitOps overlays + observability
 
   # WHICH repos may an Application in this project use as source?
-  # Globs are legal but kept narrow on purpose.
+  # No '*'. Curriculum name is https://github.com/uptimecrew/taxdocs-config.git
+  # (this cohort's fork is the Intuit URL below — the only repo we can clone).
   sourceRepos:
     - https://github.com/AI-Native-2026-08-05-Intuit/annapurna-neerukonda-tax-docs-config.git
 
