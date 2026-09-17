@@ -342,22 +342,22 @@ Outputs:
     Description: VPC ID.
     Value: !Ref Vpc
     Export:
-      Name: taxdocs-network-dev-VpcId
+      Name: !Sub taxdocs-network-${EnvName}-VpcId
 
   PublicSubnets:
     Description: Comma-joined public subnet IDs (A,B,C).
     Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB, !Ref PublicSubnetC]]
     Export:
-      Name: taxdocs-network-dev-PublicSubnets
+      Name: !Sub taxdocs-network-${EnvName}-PublicSubnets
 
   PrivateSubnets:
     Description: Comma-joined private subnet IDs (A,B,C).
     Value: !Join [",", [!Ref PrivateSubnetA, !Ref PrivateSubnetB, !Ref PrivateSubnetC]]
     Export:
-      Name: taxdocs-network-dev-PrivateSubnets
+      Name: !Sub taxdocs-network-${EnvName}-PrivateSubnets
 
   AppSgId:
     Description: Application security group. Task 3 imports this for RDS 5432 egress.
     Value: !Ref AppSecurityGroup
     Export:
-      Name: taxdocs-network-dev-AppSgId
+      Name: !Sub taxdocs-network-${EnvName}-AppSgId

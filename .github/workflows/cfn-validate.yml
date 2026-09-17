@@ -68,9 +68,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${AWS_DEPLOY_ROLE_ARN}" ]; then
-            echo "AWS_DEPLOY_ROLE_ARN repo variable is empty; skipping live validate-template."
-            echo "cfn-lint already parsed every template. Set the variable to fail the job on AWS API reject."
-            exit 0
+            echo "AWS_DEPLOY_ROLE_ARN repo variable is empty; cannot run live validate-template." >&2
+            echo "Set the AWS_DEPLOY_ROLE_ARN repo variable to the cfn-deploy role to fix this." >&2
+            exit 1
           fi
           for f in cfn/*.yaml; do
             echo "validate-template $f"

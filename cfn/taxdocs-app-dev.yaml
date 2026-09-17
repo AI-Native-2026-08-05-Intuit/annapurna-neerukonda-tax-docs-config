@@ -23,24 +23,28 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: taxdocs RDS; tcp/5432 from the imported app SG
-      VpcId: !ImportValue taxdocs-network-dev-VpcId
+      VpcId: !ImportValue
+        Fn::Sub: taxdocs-network-${EnvName}-VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          SourceSecurityGroupId: !ImportValue taxdocs-network-dev-AppSgId
+          SourceSecurityGroupId: !ImportValue
+            Fn::Sub: taxdocs-network-${EnvName}-AppSgId
           Description: Postgres from app SG
       SecurityGroupEgress:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          DestinationSecurityGroupId: !ImportValue taxdocs-network-dev-AppSgId
+          DestinationSecurityGroupId: !ImportValue
+            Fn::Sub: taxdocs-network-${EnvName}-AppSgId
           Description: Explicit egress to the app SG (satisfies F1000; not 0.0.0.0/0)
 
   AppToRdsEgress:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
-      GroupId: !ImportValue taxdocs-network-dev-AppSgId
+      GroupId: !ImportValue
+        Fn::Sub: taxdocs-network-${EnvName}-AppSgId
       DestinationSecurityGroupId: !Ref RdsSecurityGroup
       IpProtocol: tcp
       FromPort: 5432
@@ -51,12 +55,15 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Private subnets from taxdocs-network-dev export
-      SubnetIds: !Split [",", !ImportValue taxdocs-network-dev-PrivateSubnets]
+      SubnetIds: !Split
+        - ","
+        - !ImportValue
+          Fn::Sub: taxdocs-network-${EnvName}-PrivateSubnets
 
   DbInstance:
     Type: AWS::RDS::DBInstance
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Metadata:
       cfn_nag:
         rules_to_suppress:

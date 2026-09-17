@@ -48,6 +48,10 @@ Resources:
                 StorageClass: STANDARD_IA
               - TransitionInDays: 365
                 StorageClass: GLACIER_IR
+          - Id: ExpireNoncurrentVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
 
   ArtifactsBucketPolicy:
     Type: AWS::S3::BucketPolicy
