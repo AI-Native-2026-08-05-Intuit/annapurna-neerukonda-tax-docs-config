@@ -86,6 +86,15 @@ Resources:
       MasterUsername: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:password}}"
       Port: 5432
+      Tags:
+        - Key: service
+          Value: taxdocs
+        - Key: env
+          Value: !Ref EnvName
+        - Key: tenant
+          Value: shared
+        - Key: feature
+          Value: summarize-document
 
 Outputs:
   DbEndpoint:
