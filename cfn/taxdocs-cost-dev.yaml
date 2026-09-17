@@ -110,6 +110,16 @@ Resources:
   # (contrast a metric-pipeline alarm, where silence = breaching).
   EstimatedChargesAlarm:
     Type: AWS::CloudWatch::Alarm
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: >-
+              AlarmName is fixed intentionally so runbooks and the
+              `aws cloudwatch describe-alarms --alarm-names
+              taxdocs/estimated-charges-dev` check can address this alarm by
+              a stable name; a replacement briefly drops the guardrail,
+              which is acceptable for this account-wide billing alarm.
     Properties:
       AlarmName: taxdocs/estimated-charges-dev
       AlarmDescription: !Sub "Account-wide EstimatedCharges > ${BillingAlarmUsd} USD."
