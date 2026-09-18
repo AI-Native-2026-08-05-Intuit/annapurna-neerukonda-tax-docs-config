@@ -67,6 +67,15 @@ spec:
       destination:
         server:    "{{server}}"
         namespace: "{{namespace}}"
+      # KEDA owns this Deployment's replica count. Ignore only that field so
+      # Argo CD does not self-heal a scaled worker back to zero.
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          name: taxdocs-api-worker
+          namespace: "{{namespace}}"
+          jsonPointers:
+            - /spec/replicas
       syncPolicy:
         automated:
           prune:    true
@@ -78,6 +87,7 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          - RespectIgnoreDifferences=true
           - PrunePropagationPolicy=foreground
           - PruneLast=true
         retry:
