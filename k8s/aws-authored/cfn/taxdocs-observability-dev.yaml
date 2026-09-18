@@ -1,0 +1,20 @@
+# AUTHOR-ONLY: AWS X-Ray is unavailable on k3d; deploy this CloudFormation resource only in AWS.
+AWSTemplateFormatVersion: "2010-09-09"
+Description: taxdocs observability -- X-Ray sampling rule.
+
+Resources:
+  TaxdocsSamplingRule:
+    Type: AWS::XRay::SamplingRule
+    Properties:
+      SamplingRule:
+        RuleName: taxdocs-api-default
+        Priority: 1000
+        ReservoirSize: 10
+        FixedRate: 0.05
+        ServiceName: taxdocs-api
+        ServiceType: "*"
+        Host: "*"
+        HTTPMethod: "*"
+        URLPath: "*"
+        ResourceARN: "*"
+        Version: 1

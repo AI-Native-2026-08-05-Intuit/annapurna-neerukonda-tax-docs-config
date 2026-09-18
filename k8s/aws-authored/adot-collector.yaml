@@ -1,0 +1,31 @@
+# AUTHOR-ONLY: the Tempo export can run locally, but the awsxray export requires AWS; do not apply to k3d.
+# Tempo already receives the ordinary HTTPS client span for the Anthropic model hop.
+# X-Ray adds value for AWS-managed SQS/RDS segments that Tempo cannot observe directly.
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: adot-collector
+  namespace: observability
+spec:
+  image: public.ecr.aws/aws-observability/aws-otel-collector:latest
+  mode: deployment
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      otlphttp/tempo:
+        endpoint: http://tempo.monitoring.svc.cluster.local:4318
+        tls:
+          insecure: true
+      awsxray:
+        region: us-east-1
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [otlphttp/tempo, awsxray]
