@@ -1,0 +1,174 @@
+# cfn/taxdocs-bootstrap-dev.yaml
+# First stack for this capstone. Creates the artefact bucket used by
+# `aws cloudformation package` and the IAM role GitHub Actions assumes
+# via OIDC to deploy later stacks. No Action: '*'.
+#
+# DeletionPolicy AND UpdateReplacePolicy are both Retain on the bucket:
+# DeletionPolicy keeps the bucket on stack DELETE; UpdateReplacePolicy
+# keeps the same physical bucket if a replacement would otherwise
+# destroy it (name/property change). Either one alone is not enough.
+AWSTemplateFormatVersion: "2010-09-09"
+Description: taxdocs bootstrap — artefact S3 bucket + OIDC CloudFormation deploy role
+
+Parameters:
+  EnvName:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name used in resource names and export prefixes.
+
+  RetentionDays:
+    Type: Number
+    Default: 30
+    MinValue: 7
+    MaxValue: 3650
+    Description: Days to keep noncurrent object versions in the artefact bucket.
+
+  GitHubOrg:
+    Type: String
+    Default: uptimecrew
+    Description: GitHub org/user in the OIDC sub claim. Override at deploy for this cohort.
+
+  GitHubRepo:
+    Type: String
+    Default: taxdocs-config
+    Description: Gitops repo name in the OIDC sub claim. Override at deploy for this cohort.
+
+  CfnDeployRoleName:
+    Type: String
+    Default: taxdocs-api-cfn-deploy
+    Description: Account-wide IAM role name. Shared sandbox uses a per-engineer suffix.
+
+Resources:
+  BootstrapBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Access logging is out of scope for this capstone artefact bucket.
+    Properties:
+      BucketName: !Sub taxdocs-bootstrap-${EnvName}-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: alias/aws/s3
+            BucketKeyEnabled: false
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireNoncurrentVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: !Ref RetentionDays
+
+  BootstrapBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Bucket: !Ref BootstrapBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt BootstrapBucket.Arn
+              - !Sub ${BootstrapBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  CfnDeployRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: RoleName is required so GitHub OIDC can assume a stable ARN.
+    Properties:
+      RoleName: !Ref CfnDeployRoleName
+      Description: Assumed by GitHub Actions OIDC to deploy taxdocs-* CloudFormation stacks.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:*
+      Policies:
+        - PolicyName: taxdocs-cfn-deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: CloudFormationOnTaxdocsStacks
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:GetTemplate
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                Resource: arn:aws:cloudformation:*:*:stack/taxdocs-*
+              - Sid: BootstrapBucketObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                Resource: !Sub ${BootstrapBucket.Arn}/*
+              - Sid: BootstrapBucketList
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource: !GetAtt BootstrapBucket.Arn
+              - Sid: PassSelf
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/${CfnDeployRoleName}
+
+Outputs:
+  BootstrapBucketName:
+    Description: Artefact bucket for aws cloudformation package.
+    Value: !Ref BootstrapBucket
+    Export:
+      Name: !Sub taxdocs-${EnvName}-BootstrapBucketName
+
+  BootstrapBucketArn:
+    Description: ARN of the artefact bucket.
+    Value: !GetAtt BootstrapBucket.Arn
+    Export:
+      Name: !Sub taxdocs-${EnvName}-BootstrapBucketArn
+
+  CfnDeployRoleArn:
+    Description: OIDC role GitHub Actions assumes to deploy later stacks.
+    Value: !GetAtt CfnDeployRole.Arn
+    Export:
+      Name: !Sub taxdocs-${EnvName}-CfnDeployRoleArn

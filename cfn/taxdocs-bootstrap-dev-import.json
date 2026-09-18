@@ -1,0 +1,23 @@
+[
+  {
+    "ResourceType": "AWS::S3::Bucket",
+    "LogicalResourceId": "BootstrapBucket",
+    "ResourceIdentifier": {
+      "BucketName": "taxdocs-bootstrap-dev-668668940354"
+    }
+  },
+  {
+    "ResourceType": "AWS::S3::BucketPolicy",
+    "LogicalResourceId": "BootstrapBucketPolicy",
+    "ResourceIdentifier": {
+      "Bucket": "taxdocs-bootstrap-dev-668668940354"
+    }
+  },
+  {
+    "ResourceType": "AWS::IAM::Role",
+    "LogicalResourceId": "CfnDeployRole",
+    "ResourceIdentifier": {
+      "RoleName": "taxdocs-api-cfn-deploy"
+    }
+  }
+]

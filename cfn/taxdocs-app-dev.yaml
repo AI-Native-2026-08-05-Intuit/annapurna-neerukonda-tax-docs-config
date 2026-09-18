@@ -1,0 +1,101 @@
+# cfn/taxdocs-app-dev.yaml
+# RDS in the network stack's private subnets. Subnet IDs and the app SG
+# come from !ImportValue only — never hardcoded — so a network rebuild
+# does not leave stale IDs. Master username and password are Secrets
+# Manager dynamic references, not NoEcho parameters (NoEcho still sits
+# in CFN state / events).
+#
+# Secret is created out of band:
+#   aws secretsmanager create-secret --name taxdocs/dev/db-master \
+#     --secret-string '{"username":"taxdocs","password":"..."}'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: taxdocs app — RDS in imported private subnets; password from Secrets Manager
+
+Parameters:
+  EnvName:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name (dev, staging, or prod). Secret path uses this value after taxdocs/.
+
+Resources:
+  RdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: taxdocs RDS; tcp/5432 from the imported app SG
+      VpcId: !ImportValue
+        Fn::Sub: taxdocs-network-${EnvName}-VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !ImportValue
+            Fn::Sub: taxdocs-network-${EnvName}-AppSgId
+          Description: Postgres from app SG
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          DestinationSecurityGroupId: !ImportValue
+            Fn::Sub: taxdocs-network-${EnvName}-AppSgId
+          Description: Explicit egress to the app SG (satisfies F1000; not 0.0.0.0/0)
+
+  AppToRdsEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !ImportValue
+        Fn::Sub: taxdocs-network-${EnvName}-AppSgId
+      DestinationSecurityGroupId: !Ref RdsSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      Description: App SG to RDS postgres
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets from taxdocs-network-dev export
+      SubnetIds: !Split
+        - ","
+        - !ImportValue
+          Fn::Sub: taxdocs-network-${EnvName}-PrivateSubnets
+
+  DbInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Capstone RDS uses a 1-day backup window; not a production RPO.
+    Properties:
+      DBInstanceIdentifier: !Sub taxdocs-${EnvName}
+      Engine: postgres
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      StorageType: gp3
+      StorageEncrypted: true
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: 1
+      DeletionProtection: true
+      VPCSecurityGroups:
+        - !Ref RdsSecurityGroup
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      MasterUsername: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:password}}"
+      Port: 5432
+
+Outputs:
+  DbEndpoint:
+    Description: RDS instance endpoint address.
+    Value: !GetAtt DbInstance.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}-DbEndpoint
+
+  RdsSgId:
+    Description: RDS security group ID.
+    Value: !Ref RdsSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-RdsSgId
