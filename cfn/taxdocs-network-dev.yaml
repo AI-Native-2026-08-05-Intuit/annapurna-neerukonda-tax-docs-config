@@ -16,6 +16,11 @@ Parameters:
     AllowedValues: [dev, staging, prod]
     Description: Environment. Controls NAT count (one in dev, one per AZ otherwise).
 
+  UserTag:
+    Type: String
+    Default: sneerukonda
+    Description: SCP-required tag `user` (lowercase given-name-surname).
+
   VpcCidr:
     Type: String
     Default: 10.40.0.0/16
@@ -191,6 +196,16 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub taxdocs-network-${EnvName}-nat-a
+        - Key: user
+          Value: !Ref UserTag
+        - Key: service
+          Value: taxdocs
+        - Key: env
+          Value: !Ref EnvName
+        - Key: tenant
+          Value: shared
+        - Key: feature
+          Value: summarize-document
 
   NatEipB:
     Type: AWS::EC2::EIP
@@ -208,6 +223,16 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub taxdocs-network-${EnvName}-nat-b
+        - Key: user
+          Value: !Ref UserTag
+        - Key: service
+          Value: taxdocs
+        - Key: env
+          Value: !Ref EnvName
+        - Key: tenant
+          Value: shared
+        - Key: feature
+          Value: summarize-document
 
   NatEipC:
     Type: AWS::EC2::EIP
@@ -225,6 +250,16 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub taxdocs-network-${EnvName}-nat-c
+        - Key: user
+          Value: !Ref UserTag
+        - Key: service
+          Value: taxdocs
+        - Key: env
+          Value: !Ref EnvName
+        - Key: tenant
+          Value: shared
+        - Key: feature
+          Value: summarize-document
 
   PrivateRouteTableA:
     Type: AWS::EC2::RouteTable

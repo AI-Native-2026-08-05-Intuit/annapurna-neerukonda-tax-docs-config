@@ -18,6 +18,11 @@ Parameters:
     AllowedValues: [dev, staging, prod]
     Description: Environment name (dev, staging, or prod). Secret path uses this value after taxdocs/.
 
+  UserTag:
+    Type: String
+    Default: sneerukonda
+    Description: SCP-required tag `user` (lowercase given-name-surname).
+
 Resources:
   RdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -86,6 +91,17 @@ Resources:
       MasterUsername: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:taxdocs/${EnvName}/db-master:SecretString:password}}"
       Port: 5432
+      Tags:
+        - Key: user
+          Value: !Ref UserTag
+        - Key: service
+          Value: taxdocs
+        - Key: env
+          Value: !Ref EnvName
+        - Key: tenant
+          Value: shared
+        - Key: feature
+          Value: summarize-document
 
 Outputs:
   DbEndpoint:
