@@ -13,6 +13,6 @@ rules:
           pod:
             resource: pod
       name:
-        matches: "^taxdocs_inflight_requests$"
+        matches: "taxdocs_inflight_requests"
         as: taxdocs_inflight_requests
-      metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)'
+      metricsQuery: 'avg_over_time(taxdocs_inflight_requests{<<.LabelMatchers>>}[1m])'

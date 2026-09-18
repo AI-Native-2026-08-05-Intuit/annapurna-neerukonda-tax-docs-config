@@ -15,11 +15,13 @@ images:
     newName: public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
     newTag:  "0.1.5"
 
-replicas:
-  - name:  taxdocs-api
-    count: 1
-
 patches:
+  - target:
+      kind: Deployment
+      name: taxdocs-api
+    patch: |-
+      - op: remove
+        path: /spec/replicas
   - target:
       kind: ConfigMap
       name: taxdocs-api-config

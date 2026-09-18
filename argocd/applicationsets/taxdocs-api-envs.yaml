@@ -67,9 +67,15 @@ spec:
       destination:
         server:    "{{server}}"
         namespace: "{{namespace}}"
-      # KEDA owns this Deployment's replica count. Ignore only that field so
-      # Argo CD does not self-heal a scaled worker back to zero.
+      # The HPA and KEDA own these replica counts. Ignore only that field so
+      # Argo CD does not fight either autoscaler.
       ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          name: taxdocs-api
+          namespace: "{{namespace}}"
+          jsonPointers:
+            - /spec/replicas
         - group: apps
           kind: Deployment
           name: taxdocs-api-worker
