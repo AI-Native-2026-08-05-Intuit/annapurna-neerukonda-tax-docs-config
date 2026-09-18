@@ -1,0 +1,11 @@
+# Keep the HPA's two-pod serving floor during voluntary disruptions.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: taxdocs-api-pdb
+  namespace: taxdocs-dev
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: taxdocs-api
