@@ -13,7 +13,7 @@ namespace: taxdocs-dev
 images:
   - name:    public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
     newName: public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
-    newTag:  "0.1.5"
+    newTag:  "0.1.6"
 
 patches:
   - target:
