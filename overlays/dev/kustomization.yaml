@@ -23,6 +23,12 @@ patches:
       - op: remove
         path: /spec/replicas
   - target:
+      kind: Deployment
+      name: taxdocs-api-worker
+    patch: |-
+      - op: remove
+        path: /spec/replicas
+  - target:
       kind: ConfigMap
       name: taxdocs-api-config
     patch: |-
