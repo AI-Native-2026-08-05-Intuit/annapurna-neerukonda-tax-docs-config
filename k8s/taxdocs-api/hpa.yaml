@@ -1,0 +1,35 @@
+# Scale on the SLO-derived per-pod request concurrency signal, not CPU.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: taxdocs-api-hpa
+  namespace: taxdocs-dev
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: taxdocs-api
+  minReplicas: 2
+  maxReplicas: 30
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: taxdocs_inflight_requests
+        target:
+          type: AverageValue
+          averageValue: "8"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+      selectPolicy: Max

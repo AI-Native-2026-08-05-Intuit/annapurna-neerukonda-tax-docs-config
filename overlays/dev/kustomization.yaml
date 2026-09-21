@@ -6,19 +6,28 @@ kind:       Kustomization
 
 resources:
   - ../../base
+  - ../../k8s/taxdocs-api
 
 namespace: taxdocs-dev
 
 images:
   - name:    public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
     newName: public.ecr.aws/k8x3k0u5/uptimecrew/taxdocs-api
-    newTag:  "0.1.4"
-
-replicas:
-  - name:  taxdocs-api
-    count: 1
+    newTag:  "0.1.7"
 
 patches:
+  - target:
+      kind: Deployment
+      name: taxdocs-api
+    patch: |-
+      - op: remove
+        path: /spec/replicas
+  - target:
+      kind: Deployment
+      name: taxdocs-api-worker
+    patch: |-
+      - op: remove
+        path: /spec/replicas
   - target:
       kind: ConfigMap
       name: taxdocs-api-config

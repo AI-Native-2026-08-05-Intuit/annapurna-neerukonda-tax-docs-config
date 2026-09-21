@@ -1,0 +1,21 @@
+# Scale the read-model worker on documents.events consumer-group lag.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: taxdocs-worker-scaledobject
+  namespace: taxdocs-dev
+spec:
+  scaleTargetRef:
+    name: taxdocs-api-worker
+  minReplicaCount: 0
+  maxReplicaCount: 20
+  pollingInterval: 15
+  cooldownPeriod: 300
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: kafka.taxdocs-dev.svc.cluster.local:9092
+        consumerGroup: taxdocs-read-model-builder
+        topic: documents.events
+        lagThreshold: "10"
+        offsetResetPolicy: latest

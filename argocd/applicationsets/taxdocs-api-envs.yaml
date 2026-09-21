@@ -67,6 +67,21 @@ spec:
       destination:
         server:    "{{server}}"
         namespace: "{{namespace}}"
+      # The HPA and KEDA own these replica counts. Ignore only that field so
+      # Argo CD does not fight either autoscaler.
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          name: taxdocs-api
+          namespace: "{{namespace}}"
+          jsonPointers:
+            - /spec/replicas
+        - group: apps
+          kind: Deployment
+          name: taxdocs-api-worker
+          namespace: "{{namespace}}"
+          jsonPointers:
+            - /spec/replicas
       syncPolicy:
         automated:
           prune:    true
@@ -78,6 +93,7 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          - RespectIgnoreDifferences=true
           - PrunePropagationPolicy=foreground
           - PruneLast=true
         retry:

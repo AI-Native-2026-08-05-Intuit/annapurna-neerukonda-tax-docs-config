@@ -1,0 +1,31 @@
+# AUTHOR-ONLY: this SQS/IRSA production variant requires AWS and must never be applied to k3d.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: taxdocs-aws-auth
+  namespace: taxdocs-dev
+spec:
+  podIdentity:
+    provider: aws
+    identityOwner: operator
+---
+# AUTHOR-ONLY: SQS queue depth replaces local Kafka lag only on the managed AWS cluster.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: taxdocs-worker-scaledobject-sqs
+  namespace: taxdocs-dev
+spec:
+  scaleTargetRef:
+    name: taxdocs-api-worker
+  minReplicaCount: 0
+  maxReplicaCount: 20
+  triggers:
+    - type: aws-sqs-queue
+      metadata:
+        queueURL: https://sqs.us-east-1.amazonaws.com/${AWS_ACCOUNT_ID}/taxdocs-ingest-dev
+        queueLength: "10"
+        awsRegion: us-east-1
+        identityOwner: operator
+      authenticationRef:
+        name: taxdocs-aws-auth
